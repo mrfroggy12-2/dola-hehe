@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chapter 18 — For Dola</title>
+  
+  <!-- Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Plus+Jakarta+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+  
+  <!-- Canvas Confetti Engine -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <style>
+    :root {
+      --bg-dark: #0a0a0f;
+      --gold-primary: #e6c875;
+      --gold-secondary: #f3e5ab;
+      --rose-accent: #f472b6;
+      --glass-surface: rgba(255, 255, 255, 0.04);
+      --glass-border: rgba(230, 200, 117, 0.18);
+      --glass-glow: rgba(244, 114, 182, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(244, 114, 182, 0.08) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(230, 200, 117, 0.06) 0px, transparent 50%),
+        radial-gradient(at 50% 50%, rgba(15, 12, 28, 1) 0%, rgba(8, 7, 13, 1) 100%);
+      color: #f8fafc;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 16px;
+    }
+
+    /* Ambient Celestial Canvas */
+    #ambientCanvas {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Main Stage Container */
+    .app-frame {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      max-width: 760px;
+      background: var(--glass-surface);
+      backdrop-filter: blur(28px);
+      -webkit-backdrop-filter: blur(28px);
+      border: 1px solid var(--glass-border);
+      border-radius: 36px;
+      box-shadow: 0 30px 80px -15px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      padding: 50px 36px;
+      overflow: hidden;
+      transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* Header & Milestone Status */
+    .header-bar {
+      text-align: center;
+      margin-bottom: 35px;
+    }
+
+    .monogram-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 24px;
+      border-radius: 100px;
+      background: rgba(230, 200, 117, 0.08);
+      border: 1px solid rgba(230, 200, 117, 0.25);
+      font-family: 'Cinzel', serif;
+      font-size: 0.8rem;
+      letter-spacing: 3px;
+      color: var(--gold-secondary);
+      text-transform: uppercase;
+      margin-bottom: 18px;
+    }
+
+    .monogram-badge svg {
+      width: 14px;
+      height: 14px;
+      fill: var(--gold-primary);
+    }
+
+    .main-title {
+      font-family: 'Cinzel', serif;
+      font-size: clamp(2rem, 5vw, 3rem);
+      font-weight: 700;
+      letter-spacing: 1px;
+      line-height: 1.2;
+      background: linear-gradient(135deg, #ffffff 20%, var(--gold-secondary) 60%, var(--rose-accent) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 6px;
+    }
+
+    .subtitle {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 1.45rem;
+      color: #cbd5e1;
+      letter-spacing: 0.5px;
+    }
+
+    /* Interactive Steps Navigation */
+    .step-stepper {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 40px;
+    }
+
+    .step-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.2);
+      transition: all 0.4s ease;
+    }
+
+    .step-dot.active {
+      width: 32px;
+      border-radius: 10px;
+      background: linear-gradient(90deg, var(--gold-primary), var(--rose-accent));
+      box-shadow: 0 0 12px rgba(230, 200, 117, 0.5);
+    }
+
+    /* Scene Transitions */
+    .scene-view {
+      display: none;
+      animation: sceneFadeIn 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .scene-view.active {
+      display: block;
+    }
+
+    @keyframes sceneFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(18px) scale(0.98);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    /* Stage 1: The Gateau Experience */
+    .cake-stage {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding: 10px 0;
+    }
+
+    .cake-art-wrapper {
+      position: relative;
+      width: 260px;
+      height: 220px;
+      margin: 15px auto 30px;
+      cursor: pointer;
+    }
+
+    /* SVG Cake Styling */
+    .cake-base {
+      transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .slice-cut .cake-slice-left {
+      transform: translate(-12px, -6px) rotate(-3deg);
+    }
+
+    .slice-cut .cake-slice-right {
+      transform: translate(12px, 4px) rotate(3deg);
+    }
+
+    .flame-path {
+      transform-origin: center bottom;
+      animation: flameWaver 1.2s infinite ease-in-out alternate;
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+
+    .flame-path.extinguished {
+      opacity: 0;
+      transform: scale(0.2) translateY(-20px);
+    }
+
+    @keyframes flameWaver {
+      0% { transform: scale(1) rotate(-2deg); filter: drop-shadow(0 0 8px rgba(255, 186, 8, 0.8)); }
+      100% { transform: scale(1.08) rotate(3deg); filter: drop-shadow(0 0 18px rgba(244, 114, 182, 0.9)); }
+    }
+
+    .stage-instructions {
+      font-size: 0.95rem;
+      color: #94a3b8;
+      letter-spacing: 0.5px;
+      margin-bottom: 25px;
+    }
+
+    /* Stage 2: The Keepsake Box & Teddy */
+    .gift-stage {
+      text-align: center;
+      padding: 15px 0;
+    }
+
+    .box-interactive {
+      position: relative;
+      width: 170px;
+      height: 170px;
+      margin: 20px auto 30px;
+      cursor: pointer;
+      perspective: 1000px;
+    }
+
+    .luxury-box {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .box-interactive:hover .luxury-box {
+      transform: translateY(-4px);
+    }
+
+    .box-lid {
+      transition: all 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      transform-origin: top center;
+    }
+
+    .box-opened .box-lid {
+      transform: translateY(-60px) rotate(-15deg);
+      opacity: 0;
+    }
+
+    .teddy-avatar {
+      opacity: 0;
+      transform: scale(0.5) translateY(40px);
+      transition: all 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      pointer-events: none;
+    }
+
+    .box-opened .teddy-avatar {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+      pointer-events: auto;
+    }
+
+    /* Stage 3: The Curated Letter */
+    .letter-envelope {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(230, 200, 117, 0.22);
+      border-radius: 24px;
+      padding: 40px 32px;
+      position: relative;
+      box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .envelope-stamp {
+      position: absolute;
+      top: -18px;
+      right: 35px;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--gold-primary), var(--rose-accent));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Cinzel', serif;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #000;
+      box-shadow: 0 4px 15px rgba(230, 200, 117, 0.4);
+    }
+
+    .letter-salutation {
+      font-family: 'Cinzel', serif;
+      font-size: 1.25rem;
+      color: var(--gold-primary);
+      margin-bottom: 20px;
+      letter-spacing: 1px;
+    }
+
+    .letter-content {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.28rem;
+      line-height: 1.85;
+      color: #e2e8f0;
+      margin-bottom: 24px;
+    }
+
+    .letter-content p {
+      margin-bottom: 18px;
+    }
+
+    .letter-signature {
+      text-align: right;
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 1.35rem;
+      color: var(--gold-secondary);
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      padding-top: 20px;
+    }
+
+    /* Button System */
+    .control-deck {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      margin-top: 25px;
+      flex-wrap: wrap;
+    }
+
+    .btn-action {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--glass-border);
+      color: #ffffff;
+      padding: 14px 30px;
+      border-radius: 100px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      letter-spacing: 1px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .btn-action:hover {
+      background: rgba(230, 200, 117, 0.12);
+      border-color: var(--gold-primary);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(230, 200, 117, 0.18);
+    }
+
+    .btn-action.primary {
+      background: linear-gradient(135deg, var(--gold-primary) 0%, #caa452 100%);
+      border: none;
+      color: #0b0914;
+      font-weight: 700;
+      box-shadow: 0 4px 20px rgba(230, 200, 117, 0.35);
+    }
+
+    .btn-action.primary:hover {
+      background: linear-gradient(135deg, #f5d78e 0%, var(--gold-primary) 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(230, 200, 117, 0.5);
+    }
+
+    @media (max-width: 600px) {
+      .app-frame {
+        padding: 35px 20px;
+        border-radius: 28px;
+      }
+      .letter-envelope {
+        padding: 28px 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Background Particle & Starlight Canvas -->
+  <canvas id="ambientCanvas"></canvas>
+
+  <main class="app-frame">
+    
+    <!-- Top Header -->
+    <header class="header-bar">
+      <div class="monogram-badge">
+        <svg viewBox="0 0 24 24"><path d="M12 2L15 9L22 10L17 15L18 22L12 18L6 22L7 15L2 10L9 9L12 2Z"/></svg>
+        Solemn Eighteenth • 2026
+      </div>
+      <h1 class="main-title">Happy 18th Birthday</h1>
+      <div class="subtitle">Dola the Cutie</div>
+    </header>
+
+    <!-- Flow Indicator -->
+    <nav class="step-stepper" aria-label="Celebration Progress">
+      <div class="step-dot active" id="dot-0"></div>
+      <div class="step-dot" id="dot-1"></div>
+      <div class="step-dot" id="dot-2"></div>
+    </nav>
+
+    <!-- SECTION 1: THE CAKE & WISH RITUAL -->
+    <section class="scene-view active" id="scene-0">
+      <div class="cake-stage">
+        <p class="stage-instructions" id="cakeLabel">Click the flame to make a secret 18th wish, or tap the button below.</p>
+        
+        <div class="cake-art-wrapper" id="cakeArtWrapper" onclick="toggleCandle()">
+          <svg viewBox="0 0 300 240" width="100%" height="100%" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- Plate base -->
+            <ellipse cx="150" cy="215" rx="110" ry="14" fill="rgba(255,255,255,0.06)" stroke="var(--gold-primary)" stroke-opacity="0.4" stroke-width="1.5"/>
+            
+            <!-- Tier 1 (Bottom Cake) -->
+            <g class="cake-base cake-slice-left">
+              <path d="M70 170 C70 170 110 185 150 185 C190 185 230 170 230 170 V205 C230 215 190 220 150 220 C110 220 70 215 70 205 Z" fill="url(#tierBottomGrad)" stroke="rgba(255,255,255,0.1)"/>
+              <!-- Drips -->
+              <path d="M70 172 Q85 186 100 174 Q115 188 130 175 Q150 189 170 175 Q190 188 210 174 Q220 184 230 172" stroke="var(--gold-secondary)" stroke-width="3" fill="none" stroke-linecap="round"/>
+            </g>
+            
+            <!-- Tier 2 (Top Cake) -->
+            <g class="cake-base cake-slice-right">
+              <path d="M95 125 C95 125 120 138 150 138 C180 138 205 125 205 125 V165 C205 174 180 180 150 180 C120 180 95 174 95 165 Z" fill="url(#tierTopGrad)" stroke="rgba(255,255,255,0.12)"/>
+              <ellipse cx="150" cy="125" rx="55" ry="12" fill="#2d1738" stroke="var(--gold-secondary)" stroke-opacity="0.5"/>
+            </g>
+
+            <!-- Pillar Candle -->
+            <rect x="146" y="85" width="8" height="40" rx="3" fill="url(#candleGrad)"/>
+            <line x1="150" y1="85" x2="150" y2="76" stroke="#fff" stroke-width="1.5"/>
+
+            <!-- Flame -->
+            <path id="flameGraphic" class="flame-path" d="M150 55 C143 65 143 72 150 76 C157 72 157 65 150 55 Z" fill="url(#flameGrad)"/>
+
+            <defs>
+              <linearGradient id="tierBottomGrad" x1="70" y1="170" x2="230" y2="220" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#1e1528"/>
+                <stop offset="1" stop-color="#3b1b3b"/>
+              </linearGradient>
+              <linearGradient id="tierTopGrad" x1="95" y1="125" x2="205" y2="180" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#2a1634"/>
+                <stop offset="1" stop-color="#4d2146"/>
+              </linearGradient>
+              <linearGradient id="candleGrad" x1="146" y1="85" x2="154" y2="125" gradientUnits="userSpaceOnUse">
+                <stop stop-color="var(--gold-primary)"/>
+                <stop offset="1" stop-color="#e11d48"/>
+              </linearGradient>
+              <linearGradient id="flameGrad" x1="143" y1="55" x2="157" y2="76" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#fff"/>
+                <stop offset="0.4" stop-color="#fcd34d"/>
+                <stop offset="1" stop-color="#ef4444"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+
+        <div class="control-deck">
+          <button class="btn-action" onclick="toggleCandle()">
+            <span id="candleBtnText">💨 Blow the Candle</span>
+          </button>
+          <button class="btn-action" onclick="sliceGateau()">
+            <span>🔪 Cut the Gateau</span>
+          </button>
+          <button class="btn-action primary" onclick="goToStep(1)">
+            <span>Proceed to Surprise &rarr;</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 2: THE CURATED KEEPSAKE (TEDDY) -->
+    <section class="scene-view" id="scene-1">
+      <div class="gift-stage">
+        <p class="stage-instructions">A signature birthday parcel awaits your inspection.</p>
+
+        <div class="box-interactive" id="giftInteraction" onclick="openLuxuryBox()">
+          <!-- Closed Gift Package -->
+          <div class="luxury-box" id="boxGraphic">
+            <svg viewBox="0 0 160 160" width="100%" height="100%">
+              <!-- Box base -->
+              <rect x="25" y="55" width="110" height="90" rx="12" fill="#1b152b" stroke="var(--gold-primary)" stroke-width="1.5"/>
+              <rect x="73" y="55" width="14" height="90" fill="url(#ribbonGrad)"/>
+              
+              <!-- Box Lid -->
+              <g class="box-lid" id="boxLidSVG">
+                <rect x="20" y="40" width="120" height="22" rx="6" fill="#2d1c44" stroke="var(--gold-secondary)" stroke-width="1.5"/>
+                <rect x="73" y="40" width="14" height="22" fill="url(#ribbonGrad)"/>
+                <!-- Bow -->
+                <circle cx="80" cy="38" r="8" fill="var(--gold-primary)"/>
+                <path d="M72 38 C60 25 50 40 72 38 Z" fill="var(--gold-secondary)"/>
+                <path d="M88 38 C100 25 110 40 88 38 Z" fill="var(--gold-secondary)"/>
+              </g>
+
+              <defs>
+                <linearGradient id="ribbonGrad" x1="0" y1="0" x2="1" y2="0">
+                  <stop stop-color="#ffd166"/>
+                  <stop offset="0.5" stop-color="#f9d479"/>
+                  <stop offset="1" stop-color="#d4af37"/>
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+
+          <!-- Unfolded Teddy Bear Art -->
+          <div class="teddy-avatar" id="teddyGraphic" style="display: none;">
+            <svg viewBox="0 0 160 160" width="100%" height="100%">
+              <!-- Left/Right Ears -->
+              <circle cx="48" cy="48" r="16" fill="#8d5b4c"/>
+              <circle cx="48" cy="48" r="9" fill="#e8b4a2"/>
+              <circle cx="112" cy="48" r="16" fill="#8d5b4c"/>
+              <circle cx="112" cy="48" r="9" fill="#e8b4a2"/>
+
+              <!-- Head -->
+              <ellipse cx="80" cy="72" rx="38" ry="32" fill="#a06857"/>
+
+              <!-- Snout & Nose -->
+              <ellipse cx="80" cy="80" rx="18" ry="13" fill="#f4cebe"/>
+              <polygon points="76,74 84,74 80,80" fill="#2c1810"/>
+              <path d="M80 80 L80 86 M75 85 Q80 88 85 85" stroke="#2c1810" stroke-width="2" stroke-linecap="round"/>
+
+              <!-- Eyes & Sparkles -->
+              <circle cx="67" cy="68" r="4.5" fill="#1e100b"/>
+              <circle cx="66" cy="66" r="1.5" fill="#ffffff"/>
+              <circle cx="93" cy="68" r="4.5" fill="#1e100b"/>
+              <circle cx="92" cy="66" r="1.5" fill="#ffffff"/>
+
+              <!-- Chic Bowtie -->
+              <polygon points="70,105 90,105 80,111" fill="var(--rose-accent)"/>
+              <polygon points="70,117 90,117 80,111" fill="var(--rose-accent)"/>
+              <circle cx="80" cy="111" r="3.5" fill="var(--gold-primary)"/>
+
+              <!-- Arms & Body -->
+              <ellipse cx="80" cy="126" rx="32" ry="24" fill="#8d5b4c"/>
+              <circle cx="44" cy="115" r="11" fill="#8d5b4c"/>
+              <circle cx="116" cy="115" r="11" fill="#8d5b4c"/>
+            </svg>
+          </div>
+        </div>
+
+        <p id="boxPrompt" style="font-size: 1.05rem; color: var(--gold-secondary); font-weight: 600;">
+          Tap the parcel to reveal the companion inside
+        </p>
+
+        <div class="control-deck">
+          <button class="btn-action" onclick="goToStep(0)">&larr; Back to Gateau</button>
+          <button class="btn-action primary" onclick="goToStep(2)">Read the Epistle &rarr;</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 3: THE GOLDEN EPISTLE -->
+    <section class="scene-view" id="scene-2">
+      <article class="letter-envelope">
+        <div class="envelope-stamp">18</div>
+        <div class="letter-salutation">To Dola, On Crossing the Threshold</div>
+        
+        <div class="letter-content">
+          <p>
+            Eighteen is not merely an age—it is an expansive horizon. It marks the rare, beautiful convergence where the innocence of youth gracefully meets the quiet power of defining who you wish to become.
+          </p>
+          <p>
+            May your path ahead be graced with authentic clarity, daring ambitions, and moments that leave you in quiet awe of your own resilience. Never trade your warmth, your sparkling curiosity, or that innate kindness that makes you undeniably <em>Dola</em>.
+          </p>
+          <p>
+            Walk into this milestone knowing that the world is richer for your perspective. Here is to an indelible eighteenth chapter.
+          </p>
+        </div>
+
+        <footer class="letter-signature">
+          With admiration & warmest blessings,<br>
+          <span style="font-size: 1.1rem; color: #94a3b8; font-style: normal;">October 2026</span>
+        </footer>
+      </article>
+
+      <div class="control-deck">
+        <button class="btn-action" onclick="goToStep(1)">&larr; Back to Keepsake</button>
+        <button class="btn-action primary" onclick="celebrateGrandFinale()">
+          ✨ Bestow Grand Confetti
+        </button>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    /* ==========================================================
+       1. AMBIENT CELESTIAL BACKGROUND (Stars, Petals, Moons)
+       ========================================================== */
+    const canvas = document.getElementById('ambientCanvas');
+    const ctx = canvas.getContext('2d');
+    let width, height;
+    let particles = [];
+
+    function resizeCanvas() {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    class CelestialBody {
+      constructor() {
+        this.reset();
+      }
+      reset() {
+        this.x = Math.random() * width;
+        this.y = Math.random() * height + height;
+        this.size = Math.random() * 2.8 + 1;
+        this.speed = Math.random() * 0.4 + 0.2;
+        this.alpha = Math.random() * 0.6 + 0.2;
+        this.type = Math.random() > 0.85 ? 'moon' : (Math.random() > 0.6 ? 'petal' : 'star');
+        this.angle = Math.random() * Math.PI * 2;
+        this.angularSpeed = (Math.random() - 0.5) * 0.015;
+      }
+      update() {
+        this.y -= this.speed;
+        this.angle += this.angularSpeed;
+        if (this.y < -20) this.reset();
+      }
+      draw() {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.angle);
+        ctx.fillStyle = `rgba(230, 200, 117, ${this.alpha})`;
+        
+        if (this.type === 'star') {
+          ctx.beginPath();
+          ctx.arc(0, 0, this.size, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (this.type === 'petal') {
+          ctx.fillStyle = `rgba(244, 114, 182, ${this.alpha * 0.7})`;
+          ctx.beginPath();
+          ctx.ellipse(0, 0, this.size * 2, this.size, 0, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (this.type === 'moon') {
+          ctx.beginPath();
+          ctx.arc(0, 0, this.size * 2, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalCompositeOperation = 'destination-out';
+          ctx.beginPath();
+          ctx.arc(this.size * 0.8, -this.size * 0.4, this.size * 1.8, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+    }
+
+    for (let i = 0; i < 45; i++) {
+      const p = new CelestialBody();
+      p.y = Math.random() * height; // initial spread
+      particles.push(p);
+    }
+
+    function renderAmbient() {
+      ctx.clearRect(0, 0, width, height);
+      particles.forEach(p => {
+        p.update();
+        p.draw();
+      });
+      requestAnimationFrame(renderAmbient);
+    }
+    renderAmbient();
+
+    /* ==========================================================
+       2. SCENE ROUTING SYSTEM
+       ========================================================== */
+    let currentStep = 0;
+    const scenes = [
+      document.getElementById('scene-0'),
+      document.getElementById('scene-1'),
+      document.getElementById('scene-2')
+    ];
+    const dots = [
+      document.getElementById('dot-0'),
+      document.getElementById('dot-1'),
+      document.getElementById('dot-2')
+    ];
+
+    function goToStep(stepIndex) {
+      scenes[currentStep].classList.remove('active');
+      dots[currentStep].classList.remove('active');
+      
+      currentStep = stepIndex;
+      
+      scenes[currentStep].classList.add('active');
+      dots[currentStep].classList.add('active');
+
+      if (currentStep === 2) {
+        celebrateWarmBurst();
+      }
+    }
+
+    /* ==========================================================
+       3. STAGE 1 LOGIC: CANDLE & GATEAU
+       ========================================================== */
+    let isCandleLit = true;
+    let isGateauSliced = false;
+
+    function toggleCandle() {
+      const flame = document.getElementById('flameGraphic');
+      const label = document.getElementById('cakeLabel');
+      const btn = document.getElementById('candleBtnText');
+
+      if (isCandleLit) {
+        flame.classList.add('extinguished');
+        label.innerHTML = "✨ <b>Wish cast upon the stars.</b> May adulthood hold boundless grace for you, Dola.";
+        btn.textContent = "🕯️ Re-ignite Candle";
+        isCandleLit = false;
+        
+        confetti({
+          particleCount: 80,
+          spread: 60,
+          origin: { y: 0.6 },
+          colors: ['#e6c875', '#f472b6', '#ffffff']
+        });
+      } else {
+        flame.classList.remove('extinguished');
+        label.textContent = "Click the flame to make a secret 18th wish, or tap the button below.";
+        btn.textContent = "💨 Blow the Candle";
+        isCandleLit = true;
+      }
+    }
+
+    function sliceGateau() {
+      const cakeWrapper = document.getElementById('cakeArtWrapper');
+      const label = document.getElementById('cakeLabel');
+
+      if (!isGateauSliced) {
+        cakeWrapper.classList.add('slice-cut');
+        label.innerHTML = "🍰 <b>First portion served.</b> May your eighteenth year be sweet and untroubled.";
+        isGateauSliced = true;
+        confetti({
+          particleCount: 50,
+          spread: 45,
+          origin: { y: 0.65 },
+          colors: ['#e6c875', '#f3e5ab']
+        });
+      } else {
+        cakeWrapper.classList.remove('slice-cut');
+        label.textContent = "The gateau is restored intact.";
+        isGateauSliced = false;
+      }
+    }
+
+    /* ==========================================================
+       4. STAGE 2 LOGIC: LUXURY GIFT & TEDDY
+       ========================================================== */
+    let isBoxOpen = false;
+
+    function openLuxuryBox() {
+      if (!isBoxOpen) {
+        const boxContainer = document.getElementById('giftInteraction');
+        const boxGraphic = document.getElementById('boxGraphic');
+        const teddyGraphic = document.getElementById('teddyGraphic');
+        const prompt = document.getElementById('boxPrompt');
+
+        boxContainer.classList.add('box-opened');
+        
+        setTimeout(() => {
+          boxGraphic.style.display = 'none';
+          teddyGraphic.style.display = 'block';
+          prompt.innerHTML = "🧸 <em>A timeless keepsake: sweetness and courage for the road ahead.</em>";
+        }, 350);
+
+        confetti({
+          particleCount: 110,
+          spread: 80,
+          origin: { y: 0.6 },
+          colors: ['#f472b6', '#e6c875', '#8d5b4c', '#ffffff']
+        });
+
+        isBoxOpen = true;
+      }
+    }
+
+    /* ==========================================================
+       5. CONFETTI FINALE
+       ========================================================== */
+    function celebrateWarmBurst() {
+      confetti({
+        particleCount: 40,
+        spread: 90,
+        origin: { y: 0.75 },
+        colors: ['#e6c875', '#f472b6']
+      });
+    }
+
+    function celebrateGrandFinale() {
+      const duration = 2.5 * 1000;
+      const end = Date.now() + duration;
+
+      (function frame() {
+        confetti({
+          particleCount: 4,
+          angle: 60,
+          spread: 55,
+          origin: { x: 0 },
+          colors: ['#e6c875', '#f472b6', '#ffffff']
+        });
+        confetti({
+          particleCount: 4,
+          angle: 120,
+          spread: 55,
+          origin: { x: 1 },
+          colors: ['#e6c875', '#f472b6', '#ffffff']
+        });
+
+        if (Date.now() < end) {
+          requestAnimationFrame(frame);
+        }
+      })();
+    }
+  </script>
+</body>
+</html>
